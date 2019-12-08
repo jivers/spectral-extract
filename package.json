@@ -1,0 +1,19 @@
+{
+  "name": "spectral-extract",
+  "version": "1.0.0",
+  "description": "batch spectral filtering for .wav samples",
+  "main": "spectral-extract.js",
+  "directories": {
+    "example": "example"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "John Ivers",
+  "license": "MIT",
+  "dependencies": {
+    "fft-js": "0.0.12",
+    "wav-decoder": "^1.3.0",
+    "wav-encoder": "^1.3.0"
+  }
+}
