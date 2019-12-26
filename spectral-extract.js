@@ -6,7 +6,7 @@ const { fft, ifft } = require('fft-js');
 const { encode } = require("wav-encoder");
 const { decode } = require("wav-decoder");
 
-const writeWaveFile = async (arr, baseName, options={}) => {
+const writeWaveFile = async (arr, baseName, options = {}) => {
     const appendValue = (options.append) ? options.append : 'extract';
     const sampleRate = (options.sampleRate) ? options.sampleRate : 44100;
 
@@ -16,11 +16,11 @@ const writeWaveFile = async (arr, baseName, options={}) => {
     };
 
     const buf = await encode(sampleOut);
-    
+
     const outputFilePath = ((outputDir = options.outputDir ? options.outputDir : 'out') => { //Force default to out
         try {
             fs.mkdirSync(`${outputDir}`);
-        } catch(err) {} // folder exists
+        } catch (err) { } // folder exists
         return `${outputDir}/${baseName}_${appendValue}.wav`
     })();
 
@@ -69,7 +69,7 @@ const freqFilter = (bin, binFrequecy, frequencyRanges) => {
 }
 
 const extractSpectrum = async (inputFilePath, options = {}) => {
-    
+
     // ~*~*~*~*~*~ Prepare audio file for fft analysis ~*~*~*~*~*~
     const fileBuffer = fs.readFileSync(inputFilePath);
 
@@ -87,7 +87,7 @@ const extractSpectrum = async (inputFilePath, options = {}) => {
             // Mono sum channel data
             const sumVal = (() => {
                 let val = 0;
-                for(let j = 0; j < numberOfChannels; j++) {
+                for (let j = 0; j < numberOfChannels; j++) {
                     val += data.channelData[j][i];
                 };
 
@@ -135,31 +135,25 @@ const extractSpectrum = async (inputFilePath, options = {}) => {
 
         channelData = ifft(channelData).map(c => c[0] * 2.0); // Scale amplitude
 
-        await writeWaveFile(channelData, path.basename(inputFilePath, '.wav'), {...options, sampleRate });
-    } 
+        return writeWaveFile(channelData, path.basename(inputFilePath, '.wav'), { ...options, sampleRate });
+    }
     else if (processMode === 'multi') {
-        const writeFiles = frequencyRangeFilters.map(filter => {
-            return new Promise(async (resolve, reject) => {
-                let channelData = Array(length);
-                for (let i = 0; i < channelData.length; i++) {
-                    channelData[i] = phasors[i];
-        
-                    if (options.threshold) { // If a threshold is set, silence bins based on dB value 
-                        channelData[i] = dynamicFilter(channelData[i], length, options.threshold);
-                    }
-        
-                    const currentFrequency = binFrequency(i, length, sampleRate);
-                    channelData[i] = freqFilter(channelData[i], currentFrequency, [filter]);
+        frequencyRangeFilters.forEach(filter => {
+            let channelData = Array(length);
+            for (let i = 0; i < channelData.length; i++) {
+                channelData[i] = phasors[i];
+
+                if (options.threshold) { // If a threshold is set, silence bins based on dB value 
+                    channelData[i] = dynamicFilter(channelData[i], length, options.threshold);
                 }
 
-                channelData = ifft(channelData).map(c => c[0] * 2.0); // Scale amplitude
-                await writeWaveFile(channelData, path.basename(inputFilePath, '.wav'), {...options, sampleRate, append: `${filter[0]}-${filter[1]}` });
+                const currentFrequency = binFrequency(i, length, sampleRate);
+                channelData[i] = freqFilter(channelData[i], currentFrequency, [filter]);
+            }
 
-                resolve(true);
-            })
+            channelData = ifft(channelData).map(c => c[0] * 2.0); // Scale amplitude
+            writeWaveFile(channelData, path.basename(inputFilePath, '.wav'), { ...options, sampleRate, append: `${filter[0]}-${filter[1]}` });
         });
-
-        await Promise.all(writeFiles);
     }
 };
 
