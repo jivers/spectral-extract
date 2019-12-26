@@ -81,11 +81,19 @@ const extractSpectrum = async (inputFilePath, options = {}) => {
         // In almost all cases this will trim a section of the track
         // @TODO:: Use different fft algorithm
         const quantizedLength = Math.pow(2, Math.floor(Math.log2(length)));
-
+        // Traditional loops are see minor performance improvements
+        // Currently, conerting to complex values takes 75% if the time (float -> array)
         const complexValues = [...Array(quantizedLength)].map((nV, i) => {
-            // Mono sum stereo channel data
-            //@TODO:: Add support for arbitrary number of channels
-            const sumVal = data.channelData[0][i] * 0.5 + data.channelData[0][i] * 0.5; //@NB:: attenuation should be based on numChannels
+            // Mono sum channel data
+            const sumVal = (() => {
+                let val = 0;
+                for(let j = 0; j < numberOfChannels; j++) {
+                    val += data.channelData[j][i];
+                };
+
+                return val / numberOfChannels; // attenuate based on numChannels
+            })();
+
             return nV = complex(sumVal, 0);
         });
 
@@ -99,8 +107,8 @@ const extractSpectrum = async (inputFilePath, options = {}) => {
 
     // ~*~*~*~*~*~ Perform fft and calculate frequency and magnitude values ~*~*~*~*~*~
     const { sampleRate, length } = audioData;
-    const phasors = fft(audioData.complexValues);
 
+    const phasors = fft(audioData.complexValues);
 
     // ~*~*~*~*~*~ Parse options and assign defaults based on frequency data ~*~*~*~*~*~
     // If no frequency options, assign single frequency filter of the range of available frequences
@@ -123,7 +131,7 @@ const extractSpectrum = async (inputFilePath, options = {}) => {
 
             const currentFrequency = binFrequency(i, length, sampleRate);
             channelData[i] = freqFilter(channelData[i], currentFrequency, frequencyRangeFilters);
-        }
+        };
 
         channelData = ifft(channelData).map(c => c[0] * 2.0); // Scale amplitude
 
@@ -146,10 +154,11 @@ const extractSpectrum = async (inputFilePath, options = {}) => {
 
                 channelData = ifft(channelData).map(c => c[0] * 2.0); // Scale amplitude
                 await writeWaveFile(channelData, path.basename(inputFilePath, '.wav'), {...options, sampleRate, append: `${filter[0]}-${filter[1]}` });
-                
+
                 resolve(true);
             })
-        })
+        });
+
         await Promise.all(writeFiles);
     }
 };
