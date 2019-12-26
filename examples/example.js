@@ -4,8 +4,8 @@ const { extractSpectrum } = require("../spectral-extract.js");
 const main = async () => {
     await extractSpectrum("example.wav", {
         mode: "multi",
-        frequencyFilters: [[50, 100], [200, 300], [350, 400]],
-        threshold: -50,
+        frequencyFilters: [[50, 200], [300, 500]],
+        threshold: -70,
         outputDir: "out"
     });
 };
